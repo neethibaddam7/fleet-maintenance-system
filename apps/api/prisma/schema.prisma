@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  MANAGER
+  TECH
+  QA
+}
+
+enum WorkOrderStatus {
+  NEW
+  IN_PROGRESS
+  QA
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  createdWorkOrders  WorkOrder[] @relation("CreatedBy")
+  assignedWorkOrders WorkOrder[] @relation("AssignedTo")
+  events             WorkOrderEvent[]
+}
+
+model Plant {
+  id    String @id @default(uuid())
+  name  String
+  city  String
+  state String
+
+  assets     Asset[]
+  workOrders WorkOrder[]
+}
+
+model Asset {
+  id        String   @id @default(uuid())
+  assetTag  String   @unique
+  vin       String?
+  model     String
+  year      Int
+  status    String
+  plantId   String
+  createdAt DateTime @default(now())
+
+  plant      Plant      @relation(fields: [plantId], references: [id])
+  workOrders WorkOrder[]
+}
+
+model Part {
+  id           String @id @default(uuid())
+  sku          String @unique
+  name         String
+  qtyOnHand    Int
+  reorderPoint Int
+
+  workOrderParts WorkOrderPart[]
+}
+
+model WorkOrder {
+  id           String          @id @default(uuid())
+  title        String
+  description  String
+  priority     Priority
+  status       WorkOrderStatus @default(NEW)
+  plantId      String
+  assetId      String
+  createdById  String
+  assignedToId String?
+  dueDate      DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  plant      Plant @relation(fields: [plantId], references: [id])
+  asset      Asset @relation(fields: [assetId], references: [id])
+  createdBy   User  @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedTo  User? @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  events WorkOrderEvent[]
+  parts  WorkOrderPart[]
+}
+
+model WorkOrderEvent {
+  id          String          @id @default(uuid())
+  workOrderId String
+  fromStatus  WorkOrderStatus?
+  toStatus    WorkOrderStatus?
+  note        String?
+  actorId     String
+  createdAt   DateTime        @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  actor     User      @relation(fields: [actorId], references: [id])
+}
+
+model WorkOrderPart {
+  id          String   @id @default(uuid())
+  workOrderId String
+  partId      String
+  qtyUsed     Int
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  part      Part      @relation(fields: [partId], references: [id])
+}
